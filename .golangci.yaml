@@ -1,0 +1,12 @@
+version: "2"
+linters:
+  enable:
+    - forbidigo
+    - godot
+    - paralleltest
+    - revive
+    - testifylint
+  exclusions:
+    presets:
+      - comments
+      - std-error-handling
