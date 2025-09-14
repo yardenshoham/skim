@@ -5,9 +5,13 @@ go 1.24.2
 toolchain go1.25.1
 
 require (
+	github.com/goccy/go-yaml v1.18.0
 	github.com/spf13/cobra v1.10.1
 	github.com/stretchr/testify v1.11.1
 )
+
+// https://github.com/goccy/go-yaml/pull/767
+replace github.com/goccy/go-yaml => github.com/semihbkgr/go-yaml v0.0.0-20250623144847-1a8acaa8c12f
 
 require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect

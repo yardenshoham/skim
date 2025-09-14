@@ -17,6 +17,8 @@ func newRootCmd() *cobra.Command {
 func Execute() {
 	rootCmd := newRootCmd()
 	rootCmd.AddCommand(newVersionCmd())
+	rootCmd.AddCommand(newListCmd())
+	rootCmd.SilenceUsage = true
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}

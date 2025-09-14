@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: processor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: processor
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: processor
+        run: processor
+    spec:
+      containers:
+        - env:
+            - name: NAME
+              value: processor
+          image: example.com/processor:1.2.3
+          imagePullPolicy: IfNotPresent
+          name: processor
+          ports:
+            - containerPort: 8011
+              name: http
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 4
+              memory: 10Gi
+          securityContext:
+            allowPrivilegeEscalation: true
+            capabilities:
+              drop:
+                - All
+            privileged: false
+      hostIPC: false
+      hostNetwork: false
+      serviceAccountName: processor
