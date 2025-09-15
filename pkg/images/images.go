@@ -1,14 +1,42 @@
 package images
 
 import (
+	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 
 	"github.com/goccy/go-yaml"
 )
 
+type UnknownGVKBehavior int
+
+const (
+	// UnknownGVKFail indicates that the extractor should fail when encountering an unknown GVK.
+	UnknownGVKFail UnknownGVKBehavior = iota
+	// UnknownGVKSkip indicates that the extractor should skip manifests with unknown GVKs.
+	UnknownGVKSkip
+	// TODO: add free-text option grepping "image: " and "imageName: " fields from unknown GVKs.
+)
+
+// Extractor extracts image references from Kubernetes manifests.
+type Extractor struct {
+	// UnknownGVKBehavior defines the behavior when encountering unknown GVKs.
+	UnknownGVKBehavior UnknownGVKBehavior
+	// Logger is used for logging messages. Make sure you initialize it or use [NewExtractor].
+	Logger *slog.Logger
+}
+
+// NewExtractor creates a new Extractor with the provided options.
+func NewExtractor() *Extractor {
+	e := &Extractor{
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+	return e
+}
+
 // FromManifests extracts image references from a YAML stream placing them in the images map as keys.
-func FromManifests(r io.Reader, images map[string]struct{}) error {
+func (e *Extractor) FromManifests(r io.Reader, images map[string]struct{}) error {
 	decoder := yaml.NewDecoder(r, yaml.AllowDuplicateMapKey())
 	for {
 		var manifest map[string]any
@@ -18,16 +46,21 @@ func FromManifests(r io.Reader, images map[string]struct{}) error {
 			}
 			return fmt.Errorf("failed to decode manifest: %w", err)
 		}
-		err := FromManifest(manifest, images)
+		err := fromManifest(manifest, images)
 		if err != nil {
+			var unknownGVKError *UnknownGVKError
+			if e.UnknownGVKBehavior == UnknownGVKSkip && errors.As(err, &unknownGVKError) {
+				e.Logger.Warn("Skipping unknown GVK", "group-version-kind", unknownGVKError.GVK, "manifest", unknownGVKError.Manifest)
+				continue
+			}
 			return fmt.Errorf("failed to extract images from manifest: %w", err)
 		}
 	}
 	return nil
 }
 
-// FromManifest extracts image references from a Kubernetes manifest placing them in the output map as keys.
-func FromManifest(manifest map[string]any, output map[string]struct{}) error {
+// fromManifest extracts image references from a Kubernetes manifest placing them in the output map as keys.
+func fromManifest(manifest map[string]any, output map[string]struct{}) error {
 	apiVersion, ok := manifest["apiVersion"]
 	if !ok {
 		return fmt.Errorf("failed to find apiVersion field, manifest: %+v", manifest)

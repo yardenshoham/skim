@@ -350,7 +350,7 @@ func TriggersTektonDevV1beta1TriggerTemplate(triggerTemplate map[string]any, out
 		if !ok {
 			return fmt.Errorf("failed to convert resourceTemplate to map, resourceTemplate: %+v", resourceTemplate)
 		}
-		err := FromManifest(resourceTemplateMap, output)
+		err := fromManifest(resourceTemplateMap, output)
 		if err != nil {
 			return err
 		}
