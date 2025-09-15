@@ -71,3 +71,20 @@ func TestExtractImagesFromFreeText(t *testing.T) {
 		"busybox:1.35": {},
 	}, images)
 }
+
+func TestFromManifestsUnknownGVKFreeText(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	file, err := os.Open(filepath.Join("..", "..", "testdata", "unknown_gvk.yaml"))
+	require.NoError(t, err)
+	defer file.Close()
+	images := make(map[string]struct{})
+	extractor := NewExtractor()
+	extractor.UnknownGVKBehavior = UnknownGVKFreeText
+	err = extractor.ExtractFromManifests(ctx, file, images)
+	require.NoError(t, err)
+	require.Equal(t, map[string]struct{}{
+		"nginx:1.21.0": {},
+		"busybox:1.35": {},
+	}, images)
+}

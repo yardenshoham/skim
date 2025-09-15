@@ -45,14 +45,16 @@ func NewExtractor() *Extractor {
 
 // ExtractFromManifests extracts image references from a YAML stream placing them in the images map as keys.
 func (e *Extractor) ExtractFromManifests(ctx context.Context, r io.Reader, images map[string]struct{}) error {
-	var buf bytes.Buffer
+	var bufferForYAML bytes.Buffer
+	var entireInput string
 	if e.UnknownGVKBehavior == UnknownGVKFreeText {
 		// we should buffer the input in case we need to parse it as free text
-		_, err := io.Copy(&buf, r)
+		_, err := io.Copy(&bufferForYAML, r)
 		if err != nil {
 			return fmt.Errorf("failed to buffer input: %w", err)
 		}
-		r = &buf
+		entireInput = bufferForYAML.String()
+		r = bytes.NewBufferString(entireInput)
 	}
 	decoder := yaml.NewDecoder(r, yaml.AllowDuplicateMapKey())
 	for {
@@ -75,7 +77,7 @@ func (e *Extractor) ExtractFromManifests(ctx context.Context, r io.Reader, image
 					continue
 				case UnknownGVKFreeText:
 					e.Logger.WarnContext(ctx, "Unknown GVK, extracting images as free text from the input", "group-version-kind", unknownGVKError.GVK, "manifest", unknownGVKError.Manifest)
-					err := extractImagesFromFreeText(buf.String(), images)
+					err := extractImagesFromFreeText(entireInput, images)
 					if err != nil {
 						return fmt.Errorf("failed to extract images from free text: %w", err)
 					}
