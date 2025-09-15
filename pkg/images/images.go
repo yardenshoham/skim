@@ -25,6 +25,10 @@ type Extractor struct {
 	UnknownGVKBehavior UnknownGVKBehavior
 	// Logger is used for logging messages. Make sure you initialize it or use [NewExtractor].
 	Logger *slog.Logger
+	// GVKMappings maps custom GVK strings to their corresponding extraction functions. You can add custom GVKs here.
+	// The key is the GVK string in the format "apiVersion.kind", e.g. "apps/v1.Deployment".
+	// The value is a function that takes a manifest and an output map, and extracts image references from the manifest.
+	GVKMappings map[string]func(map[string]any, map[string]struct{}) error
 }
 
 // NewExtractor creates a new Extractor with the provided options.
@@ -35,8 +39,8 @@ func NewExtractor() *Extractor {
 	return e
 }
 
-// FromManifests extracts image references from a YAML stream placing them in the images map as keys.
-func (e *Extractor) FromManifests(r io.Reader, images map[string]struct{}) error {
+// ExtractFromManifests extracts image references from a YAML stream placing them in the images map as keys.
+func (e *Extractor) ExtractFromManifests(r io.Reader, images map[string]struct{}) error {
 	decoder := yaml.NewDecoder(r, yaml.AllowDuplicateMapKey())
 	for {
 		var manifest map[string]any
@@ -46,7 +50,7 @@ func (e *Extractor) FromManifests(r io.Reader, images map[string]struct{}) error
 			}
 			return fmt.Errorf("failed to decode manifest: %w", err)
 		}
-		err := fromManifest(manifest, images)
+		err := fromManifest(manifest, images, e.GVKMappings)
 		if err != nil {
 			var unknownGVKError *UnknownGVKError
 			if e.UnknownGVKBehavior == UnknownGVKSkip && errors.As(err, &unknownGVKError) {
@@ -60,7 +64,7 @@ func (e *Extractor) FromManifests(r io.Reader, images map[string]struct{}) error
 }
 
 // fromManifest extracts image references from a Kubernetes manifest placing them in the output map as keys.
-func fromManifest(manifest map[string]any, output map[string]struct{}) error {
+func fromManifest(manifest map[string]any, output map[string]struct{}, gvkMappings map[string]func(map[string]any, map[string]struct{}) error) error {
 	apiVersion, ok := manifest["apiVersion"]
 	if !ok {
 		return fmt.Errorf("failed to find apiVersion field, manifest: %+v", manifest)
@@ -78,6 +82,11 @@ func fromManifest(manifest map[string]any, output map[string]struct{}) error {
 		return fmt.Errorf("failed to convert kind to string, manifest: %+v", manifest)
 	}
 	gvkString := fmt.Sprintf("%s.%s", apiVersionStr, kindStr)
+	if gvkMappings != nil {
+		if extractorFunc, found := gvkMappings[gvkString]; found {
+			return extractorFunc(manifest, output)
+		}
+	}
 	if _, ok := imagelessGVKs[gvkString]; ok {
 		return nil
 	}

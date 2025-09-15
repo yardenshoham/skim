@@ -38,7 +38,7 @@ func newListCmd() *cobra.Command {
 					// Process stdin
 					logger.Info("Processing stdin")
 					inputStream := cmd.InOrStdin()
-					err := extractor.FromManifests(inputStream, imagesOutput)
+					err := extractor.ExtractFromManifests(inputStream, imagesOutput)
 					if err != nil {
 						return fmt.Errorf("failed to extract images from stdin: %w", err)
 					}
@@ -66,7 +66,7 @@ func newListCmd() *cobra.Command {
 					return fmt.Errorf("failed to open file %s: %w", path, err)
 				}
 				defer file.Close()
-				err = extractor.FromManifests(file, imagesOutput)
+				err = extractor.ExtractFromManifests(file, imagesOutput)
 				if err != nil {
 					return fmt.Errorf("failed to extract images from file %s: %w", path, err)
 				}

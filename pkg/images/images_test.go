@@ -15,7 +15,7 @@ func TestFromManifests(t *testing.T) {
 	defer file.Close()
 	images := make(map[string]struct{})
 	extractor := NewExtractor()
-	err = extractor.FromManifests(file, images)
+	err = extractor.ExtractFromManifests(file, images)
 	require.NoError(t, err)
 	require.Len(t, images, 1)
 	require.Contains(t, images, "example.com/processor:1.2.3")
@@ -27,7 +27,7 @@ func TestFromManifestsUnknownGVK(t *testing.T) {
 	require.NoError(t, err)
 	images := make(map[string]struct{})
 	extractor := NewExtractor()
-	err = extractor.FromManifests(file, images)
+	err = extractor.ExtractFromManifests(file, images)
 	require.Error(t, err)
 	extractorSkip := NewExtractor()
 	file.Close()
@@ -35,7 +35,7 @@ func TestFromManifestsUnknownGVK(t *testing.T) {
 	require.NoError(t, err)
 	defer file.Close()
 	extractorSkip.UnknownGVKBehavior = UnknownGVKSkip
-	err = extractorSkip.FromManifests(file, images)
+	err = extractorSkip.ExtractFromManifests(file, images)
 	require.NoError(t, err)
 	require.Empty(t, images)
 }
