@@ -1,10 +1,13 @@
 package images
 
 import (
+	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"strings"
 
 	"github.com/goccy/go-yaml"
 )
@@ -16,7 +19,8 @@ const (
 	UnknownGVKFail UnknownGVKBehavior = iota
 	// UnknownGVKSkip indicates that the extractor should skip manifests with unknown GVKs.
 	UnknownGVKSkip
-	// TODO: add free-text option grepping "image: " and "imageName: " fields from unknown GVKs.
+	// UnknownGVKFreeText indicates that the extractor should attempt to extract image references from the entire input (all manifests) as free text.
+	UnknownGVKFreeText
 )
 
 // Extractor extracts image references from Kubernetes manifests.
@@ -40,11 +44,20 @@ func NewExtractor() *Extractor {
 }
 
 // ExtractFromManifests extracts image references from a YAML stream placing them in the images map as keys.
-func (e *Extractor) ExtractFromManifests(r io.Reader, images map[string]struct{}) error {
+func (e *Extractor) ExtractFromManifests(ctx context.Context, r io.Reader, images map[string]struct{}) error {
+	var buf bytes.Buffer
+	if e.UnknownGVKBehavior == UnknownGVKFreeText {
+		// we should buffer the input in case we need to parse it as free text
+		_, err := io.Copy(&buf, r)
+		if err != nil {
+			return fmt.Errorf("failed to buffer input: %w", err)
+		}
+		r = &buf
+	}
 	decoder := yaml.NewDecoder(r, yaml.AllowDuplicateMapKey())
 	for {
 		var manifest map[string]any
-		if err := decoder.Decode(&manifest); err != nil {
+		if err := decoder.DecodeContext(ctx, &manifest); err != nil {
 			if err == io.EOF {
 				break
 			}
@@ -53,9 +66,23 @@ func (e *Extractor) ExtractFromManifests(r io.Reader, images map[string]struct{}
 		err := fromManifest(manifest, images, e.GVKMappings)
 		if err != nil {
 			var unknownGVKError *UnknownGVKError
-			if e.UnknownGVKBehavior == UnknownGVKSkip && errors.As(err, &unknownGVKError) {
-				e.Logger.Warn("Skipping unknown GVK", "group-version-kind", unknownGVKError.GVK, "manifest", unknownGVKError.Manifest)
-				continue
+			if errors.As(err, &unknownGVKError) {
+				switch e.UnknownGVKBehavior {
+				case UnknownGVKFail:
+					return fmt.Errorf("failed to extract images from manifest: %w", err)
+				case UnknownGVKSkip:
+					e.Logger.WarnContext(ctx, "Skipping unknown GVK", "group-version-kind", unknownGVKError.GVK, "manifest", unknownGVKError.Manifest)
+					continue
+				case UnknownGVKFreeText:
+					e.Logger.WarnContext(ctx, "Unknown GVK, extracting images as free text from the input", "group-version-kind", unknownGVKError.GVK, "manifest", unknownGVKError.Manifest)
+					err := extractImagesFromFreeText(buf.String(), images)
+					if err != nil {
+						return fmt.Errorf("failed to extract images from free text: %w", err)
+					}
+					continue
+				default:
+					panic("unhandled UnknownGVKBehavior")
+				}
 			}
 			return fmt.Errorf("failed to extract images from manifest: %w", err)
 		}
@@ -128,4 +155,29 @@ func fromManifest(manifest map[string]any, output map[string]struct{}, gvkMappin
 		GVK:      gvkString,
 		Manifest: manifest,
 	}
+}
+
+var imagePrefixes = []string{
+	"image: ",
+	"imageName: ",
+}
+
+// extractImagesFromFreeText finds lines of the form "image: <image>" or "imageName: <image>" in the input string and adds <image> to the output map.
+func extractImagesFromFreeText(manifest string, output map[string]struct{}) error {
+	lines := strings.SplitSeq(manifest, "\n")
+	for line := range lines {
+		for _, prefix := range imagePrefixes {
+			if idx := strings.Index(line, prefix); idx != -1 {
+				// Extract everything after the prefix
+				imageName := strings.TrimSpace(line[idx+len(prefix):])
+				// Remove quotes if present
+				imageName = strings.Trim(imageName, `"'`)
+				if imageName != "" {
+					output[imageName] = struct{}{}
+				}
+				break // Found a match, no need to check other prefixes
+			}
+		}
+	}
+	return nil
 }

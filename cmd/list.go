@@ -14,21 +14,29 @@ import (
 )
 
 func newListCmd() *cobra.Command {
-	var skipUnknownGVK bool
+	var unknownGVKBehavior string
 	var listCmd = &cobra.Command{
 		Use:     "list PATH [PATH...]",
 		Short:   "List container images from Kubernetes resources",
 		Example: "skim list path/to/k8s-manifest.yaml",
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := cmd.Context()
 			logger := slog.New(slog.NewTextHandler(cmd.ErrOrStderr(), nil))
 			outputStream := cmd.OutOrStdout()
 			imagesOutput := make(map[string]struct{})
 			extractor := &images.Extractor{
 				Logger: logger,
 			}
-			if skipUnknownGVK {
+			switch strings.ToLower(unknownGVKBehavior) {
+			case "fail":
+				extractor.UnknownGVKBehavior = images.UnknownGVKFail
+			case "skip":
 				extractor.UnknownGVKBehavior = images.UnknownGVKSkip
+			case "freetext":
+				extractor.UnknownGVKBehavior = images.UnknownGVKFreeText
+			default:
+				return fmt.Errorf("unknown value for unknown-gvk-behavior: %s", unknownGVKBehavior)
 			}
 			filePaths := make([]string, 0, len(args))
 
@@ -38,7 +46,7 @@ func newListCmd() *cobra.Command {
 					// Process stdin
 					logger.Info("Processing stdin")
 					inputStream := cmd.InOrStdin()
-					err := extractor.ExtractFromManifests(inputStream, imagesOutput)
+					err := extractor.ExtractFromManifests(ctx, inputStream, imagesOutput)
 					if err != nil {
 						return fmt.Errorf("failed to extract images from stdin: %w", err)
 					}
@@ -66,7 +74,7 @@ func newListCmd() *cobra.Command {
 					return fmt.Errorf("failed to open file %s: %w", path, err)
 				}
 				defer file.Close()
-				err = extractor.ExtractFromManifests(file, imagesOutput)
+				err = extractor.ExtractFromManifests(ctx, file, imagesOutput)
 				if err != nil {
 					return fmt.Errorf("failed to extract images from file %s: %w", path, err)
 				}
@@ -88,6 +96,6 @@ func newListCmd() *cobra.Command {
 			return nil
 		},
 	}
-	listCmd.Flags().BoolVarP(&skipUnknownGVK, "skip-unknown-gvk", "s", false, "Skip resources with unknown Group-Version-Kind instead of failing")
+	listCmd.Flags().StringVarP(&unknownGVKBehavior, "unknown-gvk-behavior", "u", "fail", "Behavior when encountering unknown Group-Version-Kind (options: fail, skip, freetext). Defaults to fail.")
 	return listCmd
 }
