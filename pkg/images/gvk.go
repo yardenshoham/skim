@@ -34,6 +34,9 @@ var imagelessGVKs = map[string]struct{}{
 	"admissionregistration.k8s.io/v1.ValidatingWebhookConfiguration": {},
 	"kyverno.io/v1.ClusterPolicy":                                    {},
 	"kyverno.io/v1.Policy":                                           {},
+	"cert-manager.io/v1.Certificate":                                 {},
+	"cert-manager.io/v1.ClusterIssuer":                               {},
+	"cert-manager.io/v1.Issuer":                                      {},
 }
 
 // UnknownGVKError is returned when a manifest has an unexpected GVK.
