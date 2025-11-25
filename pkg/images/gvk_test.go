@@ -453,6 +453,12 @@ func TestMonitoringCoreosComV1Prometheus(t *testing.T) {
 		"kind":       "Prometheus",
 		"spec": map[string]any{
 			"image": nginxLatest,
+			"containers": []any{
+				map[string]any{
+					"name":  "sidecar",
+					"image": busybox128,
+				},
+			},
 		},
 	}
 	output := make(map[string]struct{})
@@ -460,5 +466,6 @@ func TestMonitoringCoreosComV1Prometheus(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, map[string]struct{}{
 		nginxLatest: {},
+		busybox128:  {},
 	}, output)
 }
