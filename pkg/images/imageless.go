@@ -35,4 +35,9 @@ var imagelessGVKs = map[string]struct{}{
 	"cert-manager.io/v1.Certificate":                                 {},
 	"cert-manager.io/v1.ClusterIssuer":                               {},
 	"cert-manager.io/v1.Issuer":                                      {},
+	"serving.kserve.io/v1alpha1.InferenceGraph":                      {},
+	"serving.kserve.io/v1alpha1.TrainedModel":                        {},
+	"serving.kserve.io/v1alpha1.LocalModelCache":                     {},
+	"serving.kserve.io/v1alpha1.LocalModelNode":                      {},
+	"serving.kserve.io/v1alpha1.LocalModelNodeGroup":                 {},
 }

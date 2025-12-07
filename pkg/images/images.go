@@ -152,6 +152,14 @@ func fromManifest(manifest map[string]any, output map[string]struct{}, gvkMappin
 		return MonitoringCoreosComV1Alertmanager(manifest, output)
 	case "monitoring.coreos.com/v1.Prometheus":
 		return MonitoringCoreosComV1Prometheus(manifest, output)
+	case "serving.kserve.io/v1alpha1.ClusterServingRuntime":
+		return ServingKserveIOV1alpha1ClusterServingRuntime(manifest, output)
+	case "serving.kserve.io/v1alpha1.ServingRuntime":
+		return ServingKserveIOV1alpha1ServingRuntime(manifest, output)
+	case "serving.kserve.io/v1alpha1.ClusterStorageContainer":
+		return ServingKserveIOV1alpha1ClusterStorageContainer(manifest, output)
+	case "serving.kserve.io/v1beta1.InferenceService":
+		return ServingKserveIOV1beta1InferenceService(manifest, output)
 	}
 	return &UnknownGVKError{
 		GVK:      gvkString,
