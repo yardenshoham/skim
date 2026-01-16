@@ -88,3 +88,18 @@ func TestFromManifestsUnknownGVKFreeText(t *testing.T) {
 		"busybox:1.35": {},
 	}, images)
 }
+
+func TestFromManifestsMultipleObjects(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	file, err := os.Open(filepath.Join("..", "..", "testdata", "multi_object.yaml"))
+	require.NoError(t, err)
+	defer file.Close()
+	images := make(map[string]struct{})
+	extractor := NewExtractor()
+	err = extractor.ExtractFromManifests(ctx, file, images)
+	require.NoError(t, err)
+	require.Len(t, images, 2)
+	require.Contains(t, images, "nginx:1.21.0")
+	require.Contains(t, images, "redis:7.0")
+}
