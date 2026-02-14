@@ -67,8 +67,7 @@ func (e *Extractor) ExtractFromManifests(ctx context.Context, r io.Reader, image
 		}
 		err := fromManifest(manifest, images, e.GVKMappings)
 		if err != nil {
-			var unknownGVKError *UnknownGVKError
-			if errors.As(err, &unknownGVKError) {
+			if unknownGVKError, ok := errors.AsType[*UnknownGVKError](err); ok {
 				switch e.UnknownGVKBehavior {
 				case UnknownGVKFail:
 					return fmt.Errorf("failed to extract images from manifest: %w", err)
@@ -177,9 +176,9 @@ func extractImagesFromFreeText(manifest string, output map[string]struct{}) erro
 	lines := strings.SplitSeq(manifest, "\n")
 	for line := range lines {
 		for _, prefix := range imagePrefixes {
-			if idx := strings.Index(line, prefix); idx != -1 {
+			if _, after, ok := strings.Cut(line, prefix); ok {
 				// Extract everything after the prefix
-				imageName := strings.TrimSpace(line[idx+len(prefix):])
+				imageName := strings.TrimSpace(after)
 				// Remove quotes if present
 				imageName = strings.Trim(imageName, `"'`)
 				if imageName != "" {
