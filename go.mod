@@ -9,7 +9,7 @@ require (
 )
 
 // https://github.com/goccy/go-yaml/pull/767
-replace github.com/goccy/go-yaml => github.com/semihbkgr/go-yaml v0.0.0-20250623144847-1a8acaa8c12f
+replace github.com/goccy/go-yaml => github.com/semihbkgr/go-yaml v0.0.0-20250204052525-81dbf2619c42
 
 require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
